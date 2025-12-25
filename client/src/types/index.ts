@@ -36,6 +36,7 @@ export interface Call {
   transcript: TranscriptSegment[];
   transcriptText?: string;
   audioUrl?: string;
+  uploadSource?: 'audio' | 'transcript';
   summary?: string;
   analysis?: CallAnalysis;
   tags: string[];
@@ -45,7 +46,7 @@ export interface Call {
   updatedAt: string;
 }
 
-export type CallStatus = 'pending' | 'processing' | 'analyzed' | 'error';
+export type CallStatus = 'pending' | 'processing' | 'transcribing' | 'analyzed' | 'error';
 
 export interface Prospect {
   name: string;

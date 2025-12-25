@@ -10,7 +10,6 @@ import {
   ActionIcon,
   Divider,
   Tooltip,
-  Badge,
 } from '@mantine/core';
 import {
   IconLayoutDashboard,
@@ -21,7 +20,6 @@ import {
   IconChevronLeft,
   IconChevronRight,
   IconHeadphones,
-  IconChartBar,
   IconUpload,
   IconBuilding,
 } from '@tabler/icons-react';
@@ -110,8 +108,6 @@ export default function Sidebar() {
             ? location.pathname === item.path
             : location.pathname === item.path || location.pathname.startsWith(item.path + '/');
 
-          const navItem = 'badge' in item ? item as typeof item & { badge?: string } : item;
-
           const button = (
             <UnstyledButton
               component={NavLink}
@@ -131,14 +127,7 @@ export default function Sidebar() {
             >
               <item.icon size={20} style={{ opacity: isActive ? 1 : 0.7 }} />
               {!sidebarCollapsed && (
-                <Group justify="space-between" style={{ flex: 1 }}>
-                  <Text size="sm" fw={isActive ? 600 : 500}>{item.label}</Text>
-                  {navItem.badge && (
-                    <Badge size="xs" color="violet" variant="filled">
-                      {navItem.badge}
-                    </Badge>
-                  )}
-                </Group>
+                <Text size="sm" fw={isActive ? 600 : 500}>{item.label}</Text>
               )}
             </UnstyledButton>
           );

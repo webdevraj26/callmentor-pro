@@ -23,7 +23,6 @@ import {
   IconUsers,
   IconSchool,
 } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
 import { useAuthStore } from '@/store/authStore';
 import authService from '@/services/auth';
 

@@ -99,6 +99,20 @@ CLIENT_URL=http://localhost:5173
 VITE_API_URL=http://localhost:5000/api
 ```
 
+## Production
+
+The backend API is deployed at:
+
+```
+https://callmentor-pro-t6wl.onrender.com
+```
+
+For production frontend builds, set:
+
+```env
+VITE_API_URL=https://callmentor-pro-t6wl.onrender.com/api
+```
+
 ### 3. Backend Setup
 
 ```bash

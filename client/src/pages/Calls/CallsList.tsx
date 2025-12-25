@@ -140,7 +140,7 @@ export default function CallsListPage() {
       title: (value) => (!value ? 'Title is required' : null),
       prospectName: (value) => (!value ? 'Prospect name is required' : null),
       prospectCompany: (value) => (!value ? 'Company is required' : null),
-      transcriptText: (value, values) => {
+      transcriptText: (value) => {
         // Only required for transcript mode
         if (uploadMode === 'transcript' && !value) {
           return 'Transcript is required';

@@ -19,7 +19,6 @@ import {
   Menu,
   Modal,
   Select,
-  Alert,
   Loader,
   Center,
   CopyButton,
@@ -34,7 +33,6 @@ import {
   IconMail,
   IconDotsVertical,
   IconTrash,
-  IconAlertCircle,
   IconPlus,
   IconBuilding,
   IconCopy,
@@ -42,7 +40,6 @@ import {
 } from '@tabler/icons-react';
 import { useAuthStore } from '@/store/authStore';
 import { useOrganizationStore } from '@/store/organizationStore';
-import type { Organization } from '@/types';
 
 interface InviteMemberModalProps {
   opened: boolean;

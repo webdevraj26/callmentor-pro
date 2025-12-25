@@ -33,7 +33,7 @@ interface ScoreTrendItem {
 interface TeamPerformanceChartProps {
   scoreTrend: ScoreTrendItem[];
   dateRange: string;
-  onDateRangeChange: (value: string | null) => void;
+  onDateRangeChange: (value: string) => void;
 }
 
 export default function TeamPerformanceChart({
@@ -125,7 +125,7 @@ export default function TeamPerformanceChart({
         <Select
           size="xs"
           value={dateRange}
-          onChange={onDateRangeChange}
+          onChange={(value) => value && onDateRangeChange(value)}
           data={[
             { value: 'last7days', label: 'Last 7 days' },
             { value: 'last30days', label: 'Last 30 days' },

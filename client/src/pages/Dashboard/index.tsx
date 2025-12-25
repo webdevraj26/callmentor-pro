@@ -17,7 +17,6 @@ import {
   Tooltip,
   Menu,
   Progress,
-  Skeleton,
   Center,
   Loader,
 } from '@mantine/core';
@@ -30,7 +29,6 @@ import {
   IconUpload,
   IconUsers,
   IconBrain,
-  IconAlertTriangle,
   IconCheck,
   IconChevronRight,
   IconArrowUp,
@@ -462,17 +460,19 @@ export default function DashboardPage() {
                   {recentCalls.length > 0 ? (
                     <Stack gap="xs">
                       {recentCalls.map((call) => (
-                        <Group
+                        <Box
                           key={call._id}
                           component={Link}
                           to={`/calls/${call._id}`}
-                          gap="sm"
                           p="xs"
                           style={{
                             borderRadius: 'var(--mantine-radius-md)',
                             cursor: 'pointer',
                             transition: 'background 0.2s',
                             textDecoration: 'none',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 'var(--mantine-spacing-sm)',
                           }}
                         >
                           <Avatar size="sm" color="violet" radius="xl">
@@ -493,7 +493,7 @@ export default function DashboardPage() {
                           >
                             {call.analysis?.overallScore || '-'}
                           </Badge>
-                        </Group>
+                        </Box>
                       ))}
                     </Stack>
                   ) : (

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import api from '@/services/api';
 import {
   Box,
@@ -58,7 +58,6 @@ import { useCallsStore } from '@/store/callsStore';
 
 export default function CallDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
