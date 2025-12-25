@@ -7,11 +7,15 @@ import {
   getPerformanceDimensions,
   getRecentCalls,
   getCoachingInsights,
+  getPublicStats,
 } from '../controllers/analyticsController';
 
 const router = Router();
 
-// All routes require authentication
+// Public routes (no auth required)
+router.get('/public-stats', getPublicStats);
+
+// Protected routes require authentication
 router.use(protect);
 
 // Dashboard and overview

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { Call, PaginationMeta, UploadCallFormValues } from '@/types';
 import { callsService } from '@/services/calls';
-import type { CallsQueryParams } from '@/services/calls';
+import type { CallsQueryParams, AudioUploadData } from '@/services/calls';
 
 interface CallsState {
   // Data
@@ -23,6 +23,7 @@ interface CallsActions {
   fetchCalls: (params?: CallsQueryParams) => Promise<void>;
   fetchCall: (id: string) => Promise<void>;
   createCall: (data: UploadCallFormValues) => Promise<Call>;
+  createCallWithAudio: (data: AudioUploadData) => Promise<Call>;
   updateCall: (id: string, data: Partial<Call>) => Promise<void>;
   deleteCall: (id: string) => Promise<void>;
   reanalyzeCall: (id: string) => Promise<void>;
@@ -96,6 +97,28 @@ export const useCallsStore = create<CallsStore>()((set, get) => ({
       return call;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to create call';
+      set({ error: message, isCreating: false });
+      throw error;
+    }
+  },
+
+  createCallWithAudio: async (data) => {
+    set({ isCreating: true, error: null });
+    try {
+      const call = await callsService.createCallWithAudio(data);
+
+      // Add to beginning of list
+      set((state) => ({
+        calls: [call, ...state.calls],
+        isCreating: false,
+      }));
+
+      // Start polling for status updates (runs in background)
+      get().pollCallStatus(call._id);
+
+      return call;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to upload audio';
       set({ error: message, isCreating: false });
       throw error;
     }

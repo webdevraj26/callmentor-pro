@@ -120,7 +120,7 @@ class GeminiService implements AIService {
       throw new Error('GEMINI_API_KEY environment variable is required');
     }
     this.genAI = new GoogleGenerativeAI(apiKey);
-    this.model = 'gemini-2.0-flash';
+    this.model = 'gemini-2.5-flash';
   }
 
   async isAvailable(): Promise<boolean> {
@@ -189,6 +189,9 @@ class GeminiService implements AIService {
       if (jsonMatch) {
         jsonStr = jsonMatch[1].trim();
       }
+
+      // Attempt to repair common JSON malformations from Gemini
+      jsonStr = this.repairJson(jsonStr);
 
       const parsed: GeminiAnalysisResponse = JSON.parse(jsonStr);
 
@@ -259,6 +262,40 @@ class GeminiService implements AIService {
       console.error('Raw response:', text);
       throw new Error('Failed to parse AI response');
     }
+  }
+
+  private repairJson(jsonStr: string): string {
+    let repaired = jsonStr;
+
+    // Fix: Missing closing brace before comma followed by opening brace
+    // Pattern: "value" ,\n    { should be "value" },\n    {
+    repaired = repaired.replace(/("(?:[^"\\]|\\.)*")\s*,(\s*\{)/g, '$1},$2');
+
+    // Fix: Missing closing brace before comma in arrays of objects
+    // Pattern: "value"\n    ,\n    { should be "value"\n    },\n    {
+    repaired = repaired.replace(/("(?:[^"\\]|\\.)*")\s*\n\s*,\s*\n\s*\{/g, '$1\n    },\n    {');
+
+    // Fix: Trailing commas before closing brackets
+    repaired = repaired.replace(/,(\s*[}\]])/g, '$1');
+
+    // Fix: Double commas
+    repaired = repaired.replace(/,\s*,/g, ',');
+
+    // Try to balance braces/brackets if response is truncated
+    const openBraces = (repaired.match(/\{/g) || []).length;
+    const closeBraces = (repaired.match(/\}/g) || []).length;
+    const openBrackets = (repaired.match(/\[/g) || []).length;
+    const closeBrackets = (repaired.match(/\]/g) || []).length;
+
+    // Add missing closing brackets first, then braces
+    for (let i = 0; i < openBrackets - closeBrackets; i++) {
+      repaired += ']';
+    }
+    for (let i = 0; i < openBraces - closeBraces; i++) {
+      repaired += '}';
+    }
+
+    return repaired;
   }
 
   private clampScore(score: number): number {

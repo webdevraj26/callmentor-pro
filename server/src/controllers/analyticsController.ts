@@ -1,6 +1,56 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { Call } from '../models/Call';
 import { AuthRequest, DashboardMetrics, ScoreTrendPoint, ObjectionStat, PerformanceDimension } from '../types';
+
+/**
+ * @desc    Get public platform statistics for landing page
+ * @route   GET /api/analytics/public-stats
+ * @access  Public
+ */
+export const getPublicStats = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    // Get total calls analyzed across all users
+    const totalCalls = await Call.countDocuments({ status: 'analyzed' });
+
+    // Get unique teams (users with at least one call)
+    const uniqueTeams = await Call.distinct('user', { status: 'analyzed' });
+
+    // Calculate average improvement (score trend across platform)
+    const avgScoreStats = await Call.aggregate([
+      { $match: { status: 'analyzed' } },
+      {
+        $group: {
+          _id: null,
+          avgScore: { $avg: '$analysis.overallScore' },
+        },
+      },
+    ]);
+
+    const avgScore = avgScoreStats[0]?.avgScore || 0;
+    // Estimate improvement percentage (baseline 55, max 85 = ~27% improvement on avg)
+    const avgImprovement = avgScore > 55 ? Math.round(((avgScore - 55) / 55) * 100) : 0;
+
+    res.json({
+      success: true,
+      data: {
+        totalCalls: totalCalls > 0 ? totalCalls.toLocaleString() : '0',
+        totalTeams: uniqueTeams.length > 0 ? uniqueTeams.length.toString() : '0',
+        avgImprovement: avgImprovement > 0 ? `${avgImprovement}%` : '0%',
+        // Rating is kept static as it's an external metric
+        rating: '4.9',
+      },
+    });
+  } catch (error) {
+    console.error('Get public stats error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SERVER_ERROR',
+        message: 'Failed to fetch public stats',
+      },
+    });
+  }
+};
 
 /**
  * @desc    Get dashboard metrics

@@ -16,7 +16,7 @@ export const CONSTANTS = {
 
   ai: {
     gemini: {
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash',
       maxTokens: 8192,
       temperature: 0.3,
     },

@@ -35,6 +35,13 @@ export interface RecentCall {
   tags: string[];
 }
 
+export interface PublicStats {
+  totalCalls: string;
+  totalTeams: string;
+  avgImprovement: string;
+  rating: string;
+}
+
 export const analyticsService = {
   /**
    * Get dashboard metrics (averages, trends, counts)
@@ -85,6 +92,14 @@ export const analyticsService = {
     const response = await api.get<ApiResponse<RecentCall[]>>('/analytics/recent-calls', {
       params: { limit },
     });
+    return response.data.data;
+  },
+
+  /**
+   * Get public platform statistics (no auth required)
+   */
+  async getPublicStats(): Promise<PublicStats> {
+    const response = await api.get<ApiResponse<PublicStats>>('/analytics/public-stats');
     return response.data.data;
   },
 };

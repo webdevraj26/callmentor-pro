@@ -17,6 +17,7 @@ import CallsListPage from '@/pages/Calls/CallsList';
 import CallDetailPage from '@/pages/Calls/CallDetail';
 import TeamPage from '@/pages/Team';
 import SettingsPage from '@/pages/Settings';
+import OrganizationSettingsPage from '@/pages/Settings/OrganizationSettings';
 
 // Protected route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -80,6 +81,7 @@ export default function App() {
           <Route path="/calls/:id" element={<CallDetailPage />} />
           <Route path="/team" element={<TeamPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/settings/organization" element={<OrganizationSettingsPage />} />
         </Route>
 
         {/* 404 */}

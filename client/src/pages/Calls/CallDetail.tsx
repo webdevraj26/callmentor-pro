@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import api from '@/services/api';
 import {
   Box,
   Container,
@@ -58,10 +59,14 @@ import { useCallsStore } from '@/store/callsStore';
 export default function CallDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
   const [activeTab, setActiveTab] = useState<string | null>('analysis');
   const [isReanalyzing, setIsReanalyzing] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
 
   const {
     currentCall: call,
@@ -169,8 +174,82 @@ export default function CallDetailPage() {
   };
 
   const seekToTime = (timestamp: number) => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = timestamp;
+    }
     setCurrentTime(timestamp);
   };
+
+  const togglePlayPause = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setIsPlaying(!isPlaying);
+  };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      setCurrentTime(Math.floor(audioRef.current.currentTime));
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      setAudioDuration(Math.floor(audioRef.current.duration));
+    }
+  };
+
+  const handleAudioEnded = () => {
+    setIsPlaying(false);
+    setCurrentTime(0);
+  };
+
+  const skipBack = () => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 10);
+    }
+  };
+
+  const skipForward = () => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = Math.min(audioDuration, audioRef.current.currentTime + 10);
+    }
+  };
+
+  // Load audio with authentication
+  const loadAudio = useCallback(async () => {
+    if (!call?._id || !call?.audioUrl || audioUrl) return;
+
+    setIsLoadingAudio(true);
+    try {
+      const response = await api.get(`/calls/${call._id}/audio`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([response.data], { type: response.headers['content-type'] });
+      const url = URL.createObjectURL(blob);
+      setAudioUrl(url);
+    } catch (error) {
+      console.error('Failed to load audio:', error);
+    } finally {
+      setIsLoadingAudio(false);
+    }
+  }, [call?._id, call?.audioUrl, audioUrl]);
+
+  // Load audio when call is available
+  useEffect(() => {
+    if (call?.uploadSource === 'audio' && call?.audioUrl) {
+      loadAudio();
+    }
+    // Cleanup blob URL on unmount
+    return () => {
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+      }
+    };
+  }, [call?.uploadSource, call?.audioUrl, loadAudio]);
 
   const getRepName = () => {
     if (call?.user && typeof call.user === 'object' && 'name' in call.user) {
@@ -479,101 +558,137 @@ export default function CallDetailPage() {
             </Group>
           </Paper>
 
-          {/* Audio Player (Visual Only) */}
-          <Paper
-            p="lg"
-            radius="lg"
-            style={{
-              background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(109, 40, 217, 0.05) 100%)',
-              border: '1px solid var(--mantine-color-violet-9)',
-            }}
-          >
-            <Stack gap="md">
-              {/* Waveform Visualization (Simulated) */}
-              <Box
-                style={{
-                  height: 60,
-                  background: 'rgba(0, 0, 0, 0.2)',
-                  borderRadius: 'var(--mantine-radius-md)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 2,
-                  padding: '0 16px',
-                  position: 'relative',
-                  overflow: 'hidden',
-                }}
-              >
-                {/* Simulated waveform bars */}
-                {Array.from({ length: 100 }).map((_, i) => {
-                  const height = Math.sin(i * 0.3) * 20 + Math.random() * 15 + 10;
-                  const isPlayed = (i / 100) < (currentTime / call.duration);
-                  return (
-                    <Box
-                      key={i}
-                      style={{
-                        width: 3,
-                        height,
-                        borderRadius: 2,
-                        backgroundColor: isPlayed
-                          ? 'var(--mantine-color-violet-5)'
-                          : 'var(--mantine-color-dark-4)',
-                        transition: 'background-color 0.1s',
-                        flexShrink: 0,
-                      }}
-                    />
-                  );
-                })}
-                {/* Key moments markers */}
-                {keyMoments.map((moment, idx) => (
-                  <Tooltip key={idx} label={moment.label}>
-                    <Box
-                      onClick={() => seekToTime(moment.timestamp || 0)}
-                      style={{
-                        position: 'absolute',
-                        left: `${((moment.timestamp || 0) / call.duration) * 100}%`,
-                        top: 0,
-                        bottom: 0,
-                        width: 3,
-                        backgroundColor: `var(--mantine-color-${getMomentColor(moment.type)}-6)`,
-                        cursor: 'pointer',
-                        opacity: 0.8,
-                      }}
-                    />
-                  </Tooltip>
-                ))}
-              </Box>
+          {/* Audio Player - only show for audio uploads */}
+          {call.uploadSource === 'audio' && call.audioUrl && (
+            <Paper
+              p="lg"
+              radius="lg"
+              style={{
+                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(109, 40, 217, 0.05) 100%)',
+                border: '1px solid var(--mantine-color-violet-9)',
+              }}
+            >
+              {/* Hidden audio element */}
+              {audioUrl && (
+                <audio
+                  ref={audioRef}
+                  src={audioUrl}
+                  onTimeUpdate={handleTimeUpdate}
+                  onLoadedMetadata={handleLoadedMetadata}
+                  onEnded={handleAudioEnded}
+                  onPlay={() => setIsPlaying(true)}
+                  onPause={() => setIsPlaying(false)}
+                />
+              )}
 
-              {/* Controls */}
-              <Group justify="space-between">
-                <Text size="sm" c="dimmed">{formatTime(currentTime)}</Text>
-                <Group gap="md">
-                  <ActionIcon variant="subtle" color="gray" size="lg">
-                    <IconPlayerSkipBack size={18} />
-                  </ActionIcon>
-                  <ActionIcon
-                    variant="filled"
-                    color="violet"
-                    size="xl"
-                    radius="xl"
-                    onClick={() => setIsPlaying(!isPlaying)}
-                  >
-                    {isPlaying ? <IconPlayerPause size={22} /> : <IconPlayerPlay size={22} />}
-                  </ActionIcon>
-                  <ActionIcon variant="subtle" color="gray" size="lg">
-                    <IconPlayerSkipForward size={18} />
-                  </ActionIcon>
-                </Group>
-                <Group gap="md">
-                  <Group gap={4}>
-                    <IconVolume size={16} color="var(--mantine-color-gray-5)" />
-                    <Progress value={80} w={60} size="xs" color="violet" />
+              <Stack gap="md">
+                {/* Waveform Visualization (Simulated) */}
+                <Box
+                  style={{
+                    height: 60,
+                    background: 'rgba(0, 0, 0, 0.2)',
+                    borderRadius: 'var(--mantine-radius-md)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 2,
+                    padding: '0 16px',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    cursor: 'pointer',
+                  }}
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const percentage = x / rect.width;
+                    const duration = audioDuration || call.duration;
+                    seekToTime(Math.floor(percentage * duration));
+                  }}
+                >
+                  {/* Simulated waveform bars */}
+                  {Array.from({ length: 100 }).map((_, i) => {
+                    const height = Math.sin(i * 0.3) * 20 + Math.random() * 15 + 10;
+                    const duration = audioDuration || call.duration;
+                    const isPlayed = duration > 0 && (i / 100) < (currentTime / duration);
+                    return (
+                      <Box
+                        key={i}
+                        style={{
+                          width: 3,
+                          height,
+                          borderRadius: 2,
+                          backgroundColor: isPlayed
+                            ? 'var(--mantine-color-violet-5)'
+                            : 'var(--mantine-color-dark-4)',
+                          transition: 'background-color 0.1s',
+                          flexShrink: 0,
+                        }}
+                      />
+                    );
+                  })}
+                  {/* Key moments markers */}
+                  {keyMoments.map((moment, idx) => {
+                    const duration = audioDuration || call.duration;
+                    return (
+                      <Tooltip key={idx} label={moment.label}>
+                        <Box
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            seekToTime(moment.timestamp || 0);
+                          }}
+                          style={{
+                            position: 'absolute',
+                            left: `${duration > 0 ? ((moment.timestamp || 0) / duration) * 100 : 0}%`,
+                            top: 0,
+                            bottom: 0,
+                            width: 3,
+                            backgroundColor: `var(--mantine-color-${getMomentColor(moment.type)}-6)`,
+                            cursor: 'pointer',
+                            opacity: 0.8,
+                          }}
+                        />
+                      </Tooltip>
+                    );
+                  })}
+                </Box>
+
+                {/* Controls */}
+                <Group justify="space-between">
+                  <Text size="sm" c="dimmed">{formatTime(currentTime)}</Text>
+                  <Group gap="md">
+                    <Tooltip label="Back 10s">
+                      <ActionIcon variant="subtle" color="gray" size="lg" onClick={skipBack}>
+                        <IconPlayerSkipBack size={18} />
+                      </ActionIcon>
+                    </Tooltip>
+                    <ActionIcon
+                      variant="filled"
+                      color="violet"
+                      size="xl"
+                      radius="xl"
+                      onClick={togglePlayPause}
+                      disabled={!audioUrl}
+                      loading={isLoadingAudio}
+                    >
+                      {isPlaying ? <IconPlayerPause size={22} /> : <IconPlayerPlay size={22} />}
+                    </ActionIcon>
+                    <Tooltip label="Forward 10s">
+                      <ActionIcon variant="subtle" color="gray" size="lg" onClick={skipForward}>
+                        <IconPlayerSkipForward size={18} />
+                      </ActionIcon>
+                    </Tooltip>
                   </Group>
-                  <Text size="sm" c="dimmed">{formatTime(call.duration)}</Text>
+                  <Group gap="md">
+                    <Group gap={4}>
+                      <IconVolume size={16} color="var(--mantine-color-gray-5)" />
+                      <Progress value={80} w={60} size="xs" color="violet" />
+                    </Group>
+                    <Text size="sm" c="dimmed">{formatTime(audioDuration || call.duration)}</Text>
+                  </Group>
                 </Group>
-              </Group>
-            </Stack>
-          </Paper>
+              </Stack>
+            </Paper>
+          )}
 
           {/* Main Content Tabs */}
           <Tabs value={activeTab} onChange={setActiveTab}>

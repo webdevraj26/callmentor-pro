@@ -23,15 +23,16 @@ import {
   IconHeadphones,
   IconChartBar,
   IconUpload,
+  IconBuilding,
 } from '@tabler/icons-react';
 import { useUIStore } from '@/store/uiStore';
 import { useAuthStore } from '@/store/authStore';
 
 const navItems = [
   { icon: IconLayoutDashboard, label: 'Command Center', path: '/dashboard' },
-  { icon: IconPhone, label: 'Calls', path: '/calls', badge: '4' },
-  { icon: IconChartBar, label: 'Analytics', path: '/analytics' },
-  { icon: IconUsers, label: 'Team', path: '/team' },
+  { icon: IconPhone, label: 'Calls', path: '/calls' },
+  { icon: IconUsers, label: 'Team Analytics', path: '/team' },
+  { icon: IconBuilding, label: 'Organization', path: '/settings/organization' },
   { icon: IconSettings, label: 'Settings', path: '/settings' },
 ];
 

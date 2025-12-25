@@ -97,7 +97,8 @@ export interface ICallAnalysis {
   summary: string;
 }
 
-export type CallStatus = 'pending' | 'processing' | 'analyzed' | 'error';
+export type CallStatus = 'pending' | 'transcribing' | 'processing' | 'analyzed' | 'error';
+export type UploadSource = 'transcript' | 'audio';
 
 // ============ MAIN CALL INTERFACE ============
 
@@ -117,6 +118,8 @@ export interface ICall extends Document {
   analysis?: ICallAnalysis;
   tags: string[];
   status: CallStatus;
+  uploadSource: UploadSource;
+  originalFileName?: string;
   errorMessage?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -300,7 +303,7 @@ const CallSchema = new Schema<ICall>(
     transcript: [TranscriptSegmentSchema],
     transcriptText: {
       type: String,
-      required: [true, 'Transcript text is required'],
+      default: '',
     },
     audioUrl: {
       type: String,
@@ -318,9 +321,17 @@ const CallSchema = new Schema<ICall>(
     }],
     status: {
       type: String,
-      enum: ['pending', 'processing', 'analyzed', 'error'],
+      enum: ['pending', 'transcribing', 'processing', 'analyzed', 'error'],
       default: 'pending',
       index: true,
+    },
+    uploadSource: {
+      type: String,
+      enum: ['transcript', 'audio'],
+      default: 'transcript',
+    },
+    originalFileName: {
+      type: String,
     },
     errorMessage: {
       type: String,

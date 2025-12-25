@@ -260,9 +260,23 @@ export function FeatureSpotlight() {
                 bg="dark.7"
                 style={{
                   borderLeft: '1px solid var(--mantine-color-dark-5)',
+                  position: 'relative',
                 }}
                 visibleFrom="md"
               >
+                <Badge
+                  size="xs"
+                  variant="light"
+                  color="gray"
+                  style={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    zIndex: 10,
+                  }}
+                >
+                  Example
+                </Badge>
                 {activeFeature.preview}
               </Box>
             </Group>

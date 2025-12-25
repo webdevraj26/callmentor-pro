@@ -122,8 +122,7 @@ userSchema.methods.comparePassword = async function (
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-// Indexes
-userSchema.index({ email: 1 });
+// Indexes (email index is created automatically by unique: true)
 userSchema.index({ organization: 1 });
 userSchema.index({ createdAt: -1 });
 

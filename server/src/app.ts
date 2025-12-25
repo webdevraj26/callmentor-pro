@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import callsRoutes from './routes/calls';
 import analyticsRoutes from './routes/analytics';
+import organizationsRoutes from './routes/organizations';
 
 dotenv.config();
 
@@ -30,7 +31,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/calls', callsRoutes);
 app.use('/api/analytics', analyticsRoutes);
-// app.use('/api/organizations', organizationsRoutes);
+app.use('/api/organizations', organizationsRoutes);
 
 // Error handling middleware
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
