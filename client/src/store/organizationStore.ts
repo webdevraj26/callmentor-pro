@@ -101,7 +101,7 @@ interface OrganizationState {
   fetchOrganization: (id: string) => Promise<void>;
   createOrganization: (data: { name: string; description?: string }) => Promise<Organization>;
   updateOrganization: (id: string, data: Partial<Organization>) => Promise<void>;
-  inviteMember: (orgId: string, email: string, role: string) => Promise<void>;
+  inviteMember: (orgId: string, email: string, role: string) => Promise<{ inviteLink: string }>;
   removeMember: (orgId: string, userId: string) => Promise<void>;
   updateMemberRole: (orgId: string, userId: string, role: string) => Promise<void>;
   cancelInvitation: (orgId: string, email: string) => Promise<void>;
@@ -192,9 +192,10 @@ export const useOrganizationStore = create<OrganizationState>((set, get) => ({
 
   inviteMember: async (orgId, email, role) => {
     try {
-      await api.post(`/organizations/${orgId}/invite`, { email, role });
+      const response = await api.post(`/organizations/${orgId}/invite`, { email, role });
       // Refresh organization to get updated invitations
       await get().fetchOrganization(orgId);
+      return { inviteLink: response.data.data.inviteLink };
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: { message?: string } } } };
       throw new Error(err.response?.data?.error?.message || 'Failed to send invitation');

@@ -1,10 +1,38 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import crypto from 'crypto';
 import mongoose from 'mongoose';
 import { Organization, IOrganization } from '../models/Organization';
 import { User } from '../models/User';
 import { Call } from '../models/Call';
 import { AuthRequest } from '../types';
+
+/**
+ * Generate a URL-friendly slug from a name
+ */
+const generateSlug = (name: string): string => {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '') // Remove special characters
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-'); // Replace multiple hyphens with single
+};
+
+/**
+ * Generate a unique slug by appending a random suffix if needed
+ */
+const generateUniqueSlug = async (name: string): Promise<string> => {
+  let slug = generateSlug(name);
+  let existingOrg = await Organization.findOne({ slug });
+
+  while (existingOrg) {
+    const suffix = crypto.randomBytes(3).toString('hex');
+    slug = `${generateSlug(name)}-${suffix}`;
+    existingOrg = await Organization.findOne({ slug });
+  }
+
+  return slug;
+};
 
 /**
  * @desc    Create a new organization
@@ -32,8 +60,12 @@ export const createOrganization = async (req: AuthRequest, res: Response): Promi
       return;
     }
 
+    // Generate unique slug from name
+    const slug = await generateUniqueSlug(name);
+
     const organization = await Organization.create({
       name,
+      slug,
       description,
       owner: user._id,
       members: [
@@ -322,13 +354,19 @@ export const inviteMember = async (req: AuthRequest, res: Response): Promise<voi
 
     await organization.save();
 
-    // TODO: Send invitation email in production
-    // await sendInvitationEmail(email, token, organization.name, user);
+    // Generate the invite link
+    const baseUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    const inviteLink = `${baseUrl}/invite/${token}`;
 
     res.json({
       success: true,
-      message: 'Invitation sent successfully',
-      data: { token }, // In production, don't return token - send via email
+      message: 'Invitation created successfully',
+      data: {
+        token,
+        inviteLink,
+        email: email.toLowerCase(),
+        expiresAt,
+      },
     });
   } catch (error) {
     console.error('Invite member error:', error);
@@ -337,6 +375,78 @@ export const inviteMember = async (req: AuthRequest, res: Response): Promise<voi
       error: {
         code: 'SERVER_ERROR',
         message: 'Failed to send invitation',
+      },
+    });
+  }
+};
+
+/**
+ * @desc    Get invitation details (public)
+ * @route   GET /api/organizations/invite/:token
+ * @access  Public
+ */
+export const getInvitationDetails = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { token } = req.params;
+
+    const organization = await Organization.findOne({
+      'pendingInvitations.token': token,
+    }).populate('pendingInvitations.invitedBy', 'firstName lastName');
+
+    if (!organization) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'INVALID_TOKEN',
+          message: 'Invalid or expired invitation',
+        },
+      });
+      return;
+    }
+
+    const invitation = organization.pendingInvitations.find(
+      (inv) => inv.token === token
+    );
+
+    if (!invitation) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'INVALID_TOKEN',
+          message: 'Invalid invitation',
+        },
+      });
+      return;
+    }
+
+    if (invitation.expiresAt < new Date()) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'EXPIRED',
+          message: 'Invitation has expired',
+        },
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        organizationName: organization.name,
+        invitedEmail: invitation.email,
+        role: invitation.role,
+        invitedBy: invitation.invitedBy,
+        expiresAt: invitation.expiresAt,
+      },
+    });
+  } catch (error) {
+    console.error('Get invitation details error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SERVER_ERROR',
+        message: 'Failed to get invitation details',
       },
     });
   }
@@ -393,13 +503,17 @@ export const acceptInvitation = async (req: AuthRequest, res: Response): Promise
       return;
     }
 
-    // Check if user email matches invitation
-    if (user.email.toLowerCase() !== invitation.email) {
-      res.status(403).json({
+    // Check if user is already a member
+    const isAlreadyMember = organization.members.some(
+      (m) => m.user.toString() === user._id.toString()
+    );
+
+    if (isAlreadyMember) {
+      res.status(400).json({
         success: false,
         error: {
-          code: 'EMAIL_MISMATCH',
-          message: 'This invitation was sent to a different email',
+          code: 'ALREADY_MEMBER',
+          message: 'You are already a member of this team',
         },
       });
       return;

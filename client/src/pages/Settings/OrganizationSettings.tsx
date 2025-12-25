@@ -22,6 +22,8 @@ import {
   Alert,
   Loader,
   Center,
+  CopyButton,
+  Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
@@ -35,6 +37,8 @@ import {
   IconAlertCircle,
   IconPlus,
   IconBuilding,
+  IconCopy,
+  IconCheck,
 } from '@tabler/icons-react';
 import { useAuthStore } from '@/store/authStore';
 import { useOrganizationStore } from '@/store/organizationStore';
@@ -48,6 +52,7 @@ interface InviteMemberModalProps {
 
 function InviteMemberModal({ opened, onClose, organizationId }: InviteMemberModalProps) {
   const [loading, setLoading] = useState(false);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
   const { inviteMember } = useOrganizationStore();
 
   const form = useForm({
@@ -63,18 +68,17 @@ function InviteMemberModal({ opened, onClose, organizationId }: InviteMemberModa
   const handleSubmit = async (values: typeof form.values) => {
     setLoading(true);
     try {
-      await inviteMember(organizationId, values.email, values.role);
+      const result = await inviteMember(organizationId, values.email, values.role);
+      setInviteLink(result.inviteLink);
       notifications.show({
-        title: 'Invitation Sent',
-        message: `Invitation sent to ${values.email}`,
+        title: 'Invitation Created',
+        message: 'Share the link with your team member',
         color: 'green',
       });
-      form.reset();
-      onClose();
     } catch (error) {
       notifications.show({
         title: 'Error',
-        message: error instanceof Error ? error.message : 'Failed to send invitation',
+        message: error instanceof Error ? error.message : 'Failed to create invitation',
         color: 'red',
       });
     } finally {
@@ -82,57 +86,102 @@ function InviteMemberModal({ opened, onClose, organizationId }: InviteMemberModa
     }
   };
 
+  const handleClose = () => {
+    setInviteLink(null);
+    form.reset();
+    onClose();
+  };
+
   return (
     <Modal
       opened={opened}
-      onClose={onClose}
-      title={<Text fw={600}>Invite Team Member</Text>}
+      onClose={handleClose}
+      title={<Text fw={600}>{inviteLink ? 'Share Invite Link' : 'Invite Team Member'}</Text>}
       styles={{
         header: { backgroundColor: 'var(--mantine-color-dark-7)' },
         body: { backgroundColor: 'var(--mantine-color-dark-7)' },
       }}
     >
-      <form onSubmit={form.onSubmit(handleSubmit)}>
+      {inviteLink ? (
         <Stack>
-          <TextInput
-            label="Email Address"
-            placeholder="colleague@company.com"
-            required
-            {...form.getInputProps('email')}
-            styles={{
-              label: { color: 'var(--mantine-color-gray-4)' },
-              input: {
-                backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid var(--mantine-color-dark-4)',
-              },
+          <Text size="sm" c="dimmed">
+            Share this link with your team member. They can use it to join your team.
+          </Text>
+          <Paper
+            p="sm"
+            radius="md"
+            style={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid var(--mantine-color-dark-4)',
             }}
-          />
-          <Select
-            label="Role"
-            data={[
-              { value: 'member', label: 'Member' },
-              { value: 'manager', label: 'Manager' },
-              { value: 'admin', label: 'Admin' },
-            ]}
-            {...form.getInputProps('role')}
-            styles={{
-              label: { color: 'var(--mantine-color-gray-4)' },
-              input: {
-                backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid var(--mantine-color-dark-4)',
-              },
-            }}
-          />
+          >
+            <Group justify="space-between" wrap="nowrap">
+              <Text size="sm" c="white" style={{ wordBreak: 'break-all' }}>
+                {inviteLink}
+              </Text>
+              <CopyButton value={inviteLink}>
+                {({ copied, copy }) => (
+                  <Tooltip label={copied ? 'Copied!' : 'Copy link'}>
+                    <ActionIcon color={copied ? 'green' : 'violet'} onClick={copy}>
+                      {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
+                    </ActionIcon>
+                  </Tooltip>
+                )}
+              </CopyButton>
+            </Group>
+          </Paper>
+          <Text size="xs" c="dimmed">
+            This link expires in 7 days.
+          </Text>
           <Group justify="flex-end" mt="md">
-            <Button variant="subtle" color="gray" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" loading={loading}>
-              Send Invitation
+            <Button onClick={handleClose}>
+              Done
             </Button>
           </Group>
         </Stack>
-      </form>
+      ) : (
+        <form onSubmit={form.onSubmit(handleSubmit)}>
+          <Stack>
+            <TextInput
+              label="Email Address"
+              placeholder="colleague@company.com"
+              required
+              {...form.getInputProps('email')}
+              styles={{
+                label: { color: 'var(--mantine-color-gray-4)' },
+                input: {
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid var(--mantine-color-dark-4)',
+                },
+              }}
+            />
+            <Select
+              label="Role"
+              data={[
+                { value: 'member', label: 'Member' },
+                { value: 'manager', label: 'Manager' },
+                { value: 'admin', label: 'Admin' },
+              ]}
+              {...form.getInputProps('role')}
+              styles={{
+                label: { color: 'var(--mantine-color-gray-4)' },
+                input: {
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid var(--mantine-color-dark-4)',
+                },
+              }}
+            />
+            <Group justify="flex-end" mt="md">
+              <Button variant="subtle" color="gray" onClick={handleClose}>
+                Cancel
+              </Button>
+              <Button type="submit" loading={loading}>
+                Create Invitation
+              </Button>
+            </Group>
+          </Stack>
+        </form>
+      )}
     </Modal>
   );
 }
@@ -145,6 +194,7 @@ interface CreateOrgModalProps {
 function CreateOrganizationModal({ opened, onClose }: CreateOrgModalProps) {
   const [loading, setLoading] = useState(false);
   const { createOrganization } = useOrganizationStore();
+  const { refreshUser } = useAuthStore();
 
   const form = useForm({
     initialValues: {
@@ -161,18 +211,18 @@ function CreateOrganizationModal({ opened, onClose }: CreateOrgModalProps) {
     try {
       await createOrganization(values);
       notifications.show({
-        title: 'Organization Created',
-        message: 'Your organization has been created successfully',
+        title: 'Team Created',
+        message: 'Your team has been created successfully',
         color: 'green',
       });
       form.reset();
       onClose();
-      // Reload the page to update auth state
-      window.location.reload();
+      // Refresh user data to get the new organization
+      await refreshUser();
     } catch (error) {
       notifications.show({
         title: 'Error',
-        message: error instanceof Error ? error.message : 'Failed to create organization',
+        message: error instanceof Error ? error.message : 'Failed to create team',
         color: 'red',
       });
     } finally {
@@ -184,7 +234,7 @@ function CreateOrganizationModal({ opened, onClose }: CreateOrgModalProps) {
     <Modal
       opened={opened}
       onClose={onClose}
-      title={<Text fw={600}>Create Organization</Text>}
+      title={<Text fw={600}>Create Team</Text>}
       styles={{
         header: { backgroundColor: 'var(--mantine-color-dark-7)' },
         body: { backgroundColor: 'var(--mantine-color-dark-7)' },
@@ -193,7 +243,7 @@ function CreateOrganizationModal({ opened, onClose }: CreateOrgModalProps) {
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack>
           <TextInput
-            label="Organization Name"
+            label="Team Name"
             placeholder="Acme Sales Team"
             required
             {...form.getInputProps('name')}
@@ -207,7 +257,7 @@ function CreateOrganizationModal({ opened, onClose }: CreateOrgModalProps) {
           />
           <Textarea
             label="Description (Optional)"
-            placeholder="Brief description of your organization"
+            placeholder="Brief description of your team"
             {...form.getInputProps('description')}
             styles={{
               label: { color: 'var(--mantine-color-gray-4)' },
@@ -222,7 +272,7 @@ function CreateOrganizationModal({ opened, onClose }: CreateOrgModalProps) {
               Cancel
             </Button>
             <Button type="submit" loading={loading}>
-              Create Organization
+              Create Team
             </Button>
           </Group>
         </Stack>
@@ -301,7 +351,7 @@ export default function OrganizationSettingsPage() {
       });
       notifications.show({
         title: 'Saved',
-        message: 'Organization settings updated',
+        message: 'Team settings updated',
         color: 'green',
       });
     } catch (error) {
@@ -408,9 +458,9 @@ export default function OrganizationSettingsPage() {
             <Stack align="center" gap="md">
               <IconBuilding size={48} color="var(--mantine-color-gray-6)" />
               <Box>
-                <Text size="lg" fw={600} c="white">No Organization</Text>
+                <Text size="lg" fw={600} c="white">No Team</Text>
                 <Text size="sm" c="dimmed" mt={4}>
-                  Create an organization to manage your team and view team analytics.
+                  Create a team to collaborate with colleagues and view team analytics.
                 </Text>
               </Box>
               <Button
@@ -419,7 +469,7 @@ export default function OrganizationSettingsPage() {
                 gradient={{ from: '#8b5cf6', to: '#6d28d9' }}
                 onClick={openCreate}
               >
-                Create Organization
+                Create Team
               </Button>
             </Stack>
           </Paper>
@@ -448,10 +498,10 @@ export default function OrganizationSettingsPage() {
         <Stack gap="xl">
           <Box>
             <Title order={2} c="white">
-              Organization Settings
+              Team Settings
             </Title>
             <Text c="dimmed" mt={4}>
-              Manage your team and organization preferences
+              Manage your team members and preferences
             </Text>
           </Box>
 
@@ -480,7 +530,7 @@ export default function OrganizationSettingsPage() {
                 <form onSubmit={form.onSubmit(handleSaveSettings)}>
                   <Stack>
                     <TextInput
-                      label="Organization Name"
+                      label="Team Name"
                       placeholder="Acme Sales Team"
                       disabled={!canManage}
                       {...form.getInputProps('name')}
@@ -494,7 +544,7 @@ export default function OrganizationSettingsPage() {
                     />
                     <Textarea
                       label="Description"
-                      placeholder="Brief description of your organization"
+                      placeholder="Brief description of your team"
                       disabled={!canManage}
                       {...form.getInputProps('description')}
                       styles={{
@@ -512,7 +562,7 @@ export default function OrganizationSettingsPage() {
                       data={[
                         { value: 'private', label: 'Private - Only uploader' },
                         { value: 'team', label: 'Team - All team members' },
-                        { value: 'organization', label: 'Organization - Everyone' },
+                        { value: 'organization', label: 'Everyone - All members' },
                       ]}
                       {...form.getInputProps('defaultCallVisibility')}
                       styles={{
@@ -675,6 +725,7 @@ export default function OrganizationSettingsPage() {
                         <Table.Th>Role</Table.Th>
                         <Table.Th>Invited By</Table.Th>
                         <Table.Th>Expires</Table.Th>
+                        <Table.Th>Link</Table.Th>
                         {canManage && <Table.Th w={50}></Table.Th>}
                       </Table.Tr>
                     </Table.Thead>
@@ -698,6 +749,21 @@ export default function OrganizationSettingsPage() {
                             <Text size="sm" c="dimmed">
                               {new Date(invite.expiresAt).toLocaleDateString()}
                             </Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <CopyButton value={`${window.location.origin}/invite/${invite.token}`}>
+                              {({ copied, copy }) => (
+                                <Tooltip label={copied ? 'Copied!' : 'Copy invite link'}>
+                                  <ActionIcon
+                                    variant="subtle"
+                                    color={copied ? 'green' : 'violet'}
+                                    onClick={copy}
+                                  >
+                                    {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
+                                  </ActionIcon>
+                                </Tooltip>
+                              )}
+                            </CopyButton>
                           </Table.Td>
                           {canManage && (
                             <Table.Td>

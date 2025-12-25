@@ -12,6 +12,7 @@ import LoginPage from '@/pages/Auth/Login';
 import RegisterPage from '@/pages/Auth/Register';
 import ForgotPasswordPage from '@/pages/Auth/ForgotPassword';
 import OnboardingPage from '@/pages/Auth/Onboarding';
+import AcceptInvitePage from '@/pages/Auth/AcceptInvite';
 import DashboardPage from '@/pages/Dashboard';
 import CallsListPage from '@/pages/Calls/CallsList';
 import CallDetailPage from '@/pages/Calls/CallDetail';
@@ -63,6 +64,7 @@ export default function App() {
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
+        <Route path="/invite/:token" element={<AcceptInvitePage />} />
 
         {/* Auth Routes */}
         <Route element={<PublicRoute><AuthLayout /></PublicRoute>}>

@@ -29,11 +29,11 @@ import { useUIStore } from '@/store/uiStore';
 import { useAuthStore } from '@/store/authStore';
 
 const navItems = [
-  { icon: IconLayoutDashboard, label: 'Command Center', path: '/dashboard' },
-  { icon: IconPhone, label: 'Calls', path: '/calls' },
-  { icon: IconUsers, label: 'Team Analytics', path: '/team' },
-  { icon: IconBuilding, label: 'Organization', path: '/settings/organization' },
-  { icon: IconSettings, label: 'Settings', path: '/settings' },
+  { icon: IconLayoutDashboard, label: 'Command Center', path: '/dashboard', exact: true },
+  { icon: IconPhone, label: 'Calls', path: '/calls', exact: false },
+  { icon: IconUsers, label: 'Team Analytics', path: '/team', exact: true },
+  { icon: IconBuilding, label: 'Team Settings', path: '/settings/organization', exact: true },
+  { icon: IconSettings, label: 'Settings', path: '/settings', exact: true },
 ];
 
 export default function Sidebar() {
@@ -106,8 +106,9 @@ export default function Sidebar() {
       {/* Navigation */}
       <Stack gap="xs" style={{ flex: 1 }}>
         {navItems.map((item) => {
-          const isActive = location.pathname === item.path ||
-            (item.path !== '/dashboard' && location.pathname.startsWith(item.path));
+          const isActive = item.exact
+            ? location.pathname === item.path
+            : location.pathname === item.path || location.pathname.startsWith(item.path + '/');
 
           const navItem = 'badge' in item ? item as typeof item & { badge?: string } : item;
 

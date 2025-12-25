@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -11,7 +12,7 @@ import {
   Group,
   Button,
 } from '@mantine/core';
-import { IconAlertCircle, IconRefresh, IconUsersGroup } from '@tabler/icons-react';
+import { IconAlertCircle, IconRefresh, IconUsersGroup, IconUserPlus } from '@tabler/icons-react';
 import { useAuthStore } from '@/store/authStore';
 import { useOrganizationStore } from '@/store/organizationStore';
 import {
@@ -22,6 +23,7 @@ import {
 } from '@/components/analytics';
 
 export default function TeamAnalyticsPage() {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const {
     stats,
@@ -44,6 +46,10 @@ export default function TeamAnalyticsPage() {
     }
   };
 
+  const handleInviteMember = () => {
+    navigate('/settings/organization');
+  };
+
   if (!user?.organization) {
     return (
       <Box
@@ -55,13 +61,13 @@ export default function TeamAnalyticsPage() {
         <Container size="xl" py="xl">
           <Alert
             icon={<IconUsersGroup size={20} />}
-            title="No Organization"
+            title="No Team"
             color="yellow"
             variant="outline"
           >
             <Text size="sm">
-              You need to be part of an organization to view team analytics.
-              Create or join an organization to get started.
+              You need to be part of a team to view team analytics.
+              Create or join a team to get started.
             </Text>
             <Button
               variant="light"
@@ -71,7 +77,7 @@ export default function TeamAnalyticsPage() {
               component="a"
               href="/settings/organization"
             >
-              Create Organization
+              Create Team
             </Button>
           </Alert>
         </Container>
@@ -127,14 +133,23 @@ export default function TeamAnalyticsPage() {
                 Track team performance and identify coaching opportunities
               </Text>
             </Box>
-            <Button
-              variant="subtle"
-              leftSection={<IconRefresh size={16} />}
-              onClick={handleRefresh}
-              loading={isLoadingStats}
-            >
-              Refresh
-            </Button>
+            <Group>
+              <Button
+                variant="light"
+                leftSection={<IconUserPlus size={16} />}
+                onClick={handleInviteMember}
+              >
+                Invite Member
+              </Button>
+              <Button
+                variant="subtle"
+                leftSection={<IconRefresh size={16} />}
+                onClick={handleRefresh}
+                loading={isLoadingStats}
+              >
+                Refresh
+              </Button>
+            </Group>
           </Group>
 
           {/* Overview Stats */}

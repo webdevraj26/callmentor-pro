@@ -176,7 +176,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 // @access  Private
 export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const user = await User.findById(req.user?._id).populate('organization');
+    const user = await User.findById(req.user?._id);
 
     if (!user) {
       res.status(404).json({

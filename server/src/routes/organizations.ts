@@ -7,6 +7,7 @@ import {
   updateOrganization,
   inviteMember,
   acceptInvitation,
+  getInvitationDetails,
   removeMember,
   updateMemberRole,
   cancelInvitation,
@@ -15,7 +16,10 @@ import {
 
 const router = Router();
 
-// All routes require authentication
+// Public routes (no auth required)
+router.get('/invite/:token', getInvitationDetails);
+
+// All routes below require authentication
 router.use(protect);
 
 // Organization CRUD

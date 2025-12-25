@@ -3,108 +3,40 @@ import { ICallAnalysis } from '../../models/Call';
 import { AIService, AnalysisContext, GeminiAnalysisResponse } from '../../types/ai';
 import { CONSTANTS } from '../../config/constants';
 
-const ANALYSIS_PROMPT = `You are an expert sales coach analyzing a sales call transcript. Your role is to provide detailed, actionable feedback that helps sales representatives improve their performance.
+const ANALYSIS_PROMPT = `Analyze this sales call transcript as a coach. Return ONLY valid JSON - no markdown, no extra text.
 
-Analyze the following sales call transcript and provide a comprehensive JSON response with the structure below. Be specific, cite examples from the transcript, and provide constructive feedback.
+IMPORTANT: Keep all text fields SHORT (under 100 chars). Limit arrays to max 3 items.
 
-SCORING CRITERIA:
-1. Discovery (25% weight): Quality of needs discovery questions, understanding prospect's pain points
-2. Talk Balance (20% weight): Optimal 40-60% rep talk time, letting prospect speak
-3. Objection Handling (20% weight): How well objections were identified and addressed
-4. Next Steps (15% weight): Clear action items and follow-up established
-5. Rapport (10% weight): Relationship building, empathy, connection
-6. Accuracy (10% weight): Product knowledge, accurate information
-
-REQUIRED JSON STRUCTURE:
 {
-  "overallScore": <number 0-100>,
+  "overallScore": 0-100,
   "scoreBreakdown": {
     "categories": {
-      "discovery": {
-        "score": <number 0-100>,
-        "weight": 0.25,
-        "reasoning": "<specific explanation with examples>",
-        "highlights": ["<quote or observation>"]
-      },
-      "talkBalance": {
-        "score": <number 0-100>,
-        "weight": 0.20,
-        "reasoning": "<explanation>",
-        "highlights": []
-      },
-      "objectionHandling": {
-        "score": <number 0-100>,
-        "weight": 0.20,
-        "reasoning": "<explanation>",
-        "highlights": []
-      },
-      "nextSteps": {
-        "score": <number 0-100>,
-        "weight": 0.15,
-        "reasoning": "<explanation>",
-        "highlights": []
-      },
-      "rapport": {
-        "score": <number 0-100>,
-        "weight": 0.10,
-        "reasoning": "<explanation>",
-        "highlights": []
-      },
-      "accuracy": {
-        "score": <number 0-100>,
-        "weight": 0.10,
-        "reasoning": "<explanation>",
-        "highlights": []
-      }
+      "discovery": {"score": 0-100, "weight": 0.25, "reasoning": "brief", "highlights": []},
+      "talkBalance": {"score": 0-100, "weight": 0.20, "reasoning": "brief", "highlights": []},
+      "objectionHandling": {"score": 0-100, "weight": 0.20, "reasoning": "brief", "highlights": []},
+      "nextSteps": {"score": 0-100, "weight": 0.15, "reasoning": "brief", "highlights": []},
+      "rapport": {"score": 0-100, "weight": 0.10, "reasoning": "brief", "highlights": []},
+      "accuracy": {"score": 0-100, "weight": 0.10, "reasoning": "brief", "highlights": []}
     }
   },
   "metrics": {
-    "talkRatio": <number - estimated % of rep talk time>,
-    "questionCount": <number of questions asked by rep>,
-    "longestMonologue": <estimated seconds of longest uninterrupted speech>,
-    "fillerWordCount": <count of um, uh, like, you know, etc.>,
-    "sentiment": "<positive|neutral|negative>",
-    "engagementScore": <number 0-100 based on prospect engagement>
+    "talkRatio": 0-100,
+    "questionCount": number,
+    "longestMonologue": seconds,
+    "fillerWordCount": number,
+    "sentiment": "positive|neutral|negative",
+    "engagementScore": 0-100
   },
   "objections": [
-    {
-      "id": "<unique id>",
-      "text": "<the objection quote>",
-      "type": "<pricing|timeline|competition|authority|need|other>",
-      "timestamp": "<approximate location in call>",
-      "addressed": <boolean>,
-      "handling": "<well|partial|poor|missed>",
-      "repResponse": "<how the rep responded>",
-      "suggestedResponse": "<better way to handle this>"
-    }
+    {"id": "1", "text": "short quote", "type": "pricing|timeline|competition|authority|need|other", "timestamp": "early|middle|late", "addressed": true/false, "handling": "well|partial|poor|missed", "repResponse": "brief", "suggestedResponse": "brief"}
   ],
   "coachingFeedback": {
-    "summary": "<2-3 sentence overall assessment>",
-    "strengths": [
-      {
-        "title": "<short title>",
-        "description": "<what they did well>",
-        "quote": "<optional supporting quote>",
-        "impact": "<high|medium>"
-      }
-    ],
-    "improvements": [
-      {
-        "title": "<short title>",
-        "description": "<what needs improvement>",
-        "priority": "<high|medium|low>",
-        "suggestion": "<specific actionable advice>",
-        "example": "<example of what to say>"
-      }
-    ],
-    "actionItems": [
-      {
-        "task": "<specific task>",
-        "type": "<practice|study|review|discuss>"
-      }
-    ]
+    "summary": "2 sentences max",
+    "strengths": [{"title": "short", "description": "brief", "impact": "high|medium"}],
+    "improvements": [{"title": "short", "description": "brief", "priority": "high|medium|low", "suggestion": "brief"}],
+    "actionItems": [{"task": "brief", "type": "practice|study|review|discuss"}]
   },
-  "summary": "<2-3 sentence summary of the call>"
+  "summary": "2 sentences max"
 }
 
 TRANSCRIPT:
@@ -138,45 +70,58 @@ class GeminiService implements AIService {
     transcriptText: string,
     context?: AnalysisContext
   ): Promise<ICallAnalysis> {
-    try {
-      const model = this.genAI.getGenerativeModel({
-        model: this.model,
-        generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 8192,
-          responseMimeType: 'application/json',
-        },
-      });
+    const MAX_RETRIES = 2;
+    let lastError: Error | null = null;
 
-      // Build context-enhanced prompt
-      let contextInfo = '';
-      if (context) {
-        const parts = [];
-        if (context.repName) parts.push(`Sales Rep: ${context.repName}`);
-        if (context.prospectName) parts.push(`Prospect: ${context.prospectName}`);
-        if (context.prospectCompany) parts.push(`Company: ${context.prospectCompany}`);
-        if (context.callType) parts.push(`Call Type: ${context.callType}`);
-        if (parts.length > 0) {
-          contextInfo = `\n\nCALL CONTEXT:\n${parts.join('\n')}\n`;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const model = this.genAI.getGenerativeModel({
+          model: this.model,
+          generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 16384, // Increased to avoid truncation
+            responseMimeType: 'application/json',
+          },
+        });
+
+        // Build context-enhanced prompt
+        let contextInfo = '';
+        if (context) {
+          const parts = [];
+          if (context.repName) parts.push(`Sales Rep: ${context.repName}`);
+          if (context.prospectName) parts.push(`Prospect: ${context.prospectName}`);
+          if (context.prospectCompany) parts.push(`Company: ${context.prospectCompany}`);
+          if (context.callType) parts.push(`Call Type: ${context.callType}`);
+          if (parts.length > 0) {
+            contextInfo = `\n\nCALL CONTEXT:\n${parts.join('\n')}\n`;
+          }
+        }
+
+        const fullPrompt = ANALYSIS_PROMPT + contextInfo + transcriptText;
+
+        const result = await model.generateContent(fullPrompt);
+        const response = result.response;
+        const text = response.text();
+
+        // Parse and validate the JSON response
+        const analysis = this.parseAndValidateResponse(text);
+
+        return analysis;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('Unknown error');
+        console.error(`Gemini analysis attempt ${attempt + 1} failed:`, lastError.message);
+
+        if (attempt < MAX_RETRIES) {
+          // Wait before retrying (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
         }
       }
-
-      const fullPrompt = ANALYSIS_PROMPT + contextInfo + transcriptText;
-
-      const result = await model.generateContent(fullPrompt);
-      const response = result.response;
-      const text = response.text();
-
-      // Parse and validate the JSON response
-      const analysis = this.parseAndValidateResponse(text);
-
-      return analysis;
-    } catch (error) {
-      console.error('Gemini analysis error:', error);
-      throw new Error(
-        `Failed to analyze transcript: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
     }
+
+    console.error('Gemini analysis error after all retries:', lastError);
+    throw new Error(
+      `Failed to analyze transcript: ${lastError?.message || 'Unknown error'}`
+    );
   }
 
   private parseAndValidateResponse(text: string): ICallAnalysis {
@@ -267,6 +212,36 @@ class GeminiService implements AIService {
   private repairJson(jsonStr: string): string {
     let repaired = jsonStr;
 
+    // Fix: Truncated strings - find unclosed strings and close them
+    // Count quotes to detect unclosed strings
+    let inString = false;
+    let lastQuoteIndex = -1;
+    for (let i = 0; i < repaired.length; i++) {
+      if (repaired[i] === '"' && (i === 0 || repaired[i - 1] !== '\\')) {
+        inString = !inString;
+        if (inString) {
+          lastQuoteIndex = i;
+        }
+      }
+    }
+
+    // If we ended inside a string, close it and clean up
+    if (inString && lastQuoteIndex !== -1) {
+      // Find a safe truncation point (before the last incomplete value)
+      // Look backwards for the last complete key-value pair
+      const beforeString = repaired.substring(0, lastQuoteIndex);
+      const lastCompleteComma = beforeString.lastIndexOf(',');
+      const lastCompleteColon = beforeString.lastIndexOf(':');
+
+      if (lastCompleteComma > lastCompleteColon) {
+        // Truncate at the last comma (remove incomplete key-value pair)
+        repaired = repaired.substring(0, lastCompleteComma);
+      } else {
+        // Close the current string with placeholder text and close the value
+        repaired = repaired + '..."';
+      }
+    }
+
     // Fix: Missing closing brace before comma followed by opening brace
     // Pattern: "value" ,\n    { should be "value" },\n    {
     repaired = repaired.replace(/("(?:[^"\\]|\\.)*")\s*,(\s*\{)/g, '$1},$2');
@@ -280,6 +255,9 @@ class GeminiService implements AIService {
 
     // Fix: Double commas
     repaired = repaired.replace(/,\s*,/g, ',');
+
+    // Remove trailing comma at the very end
+    repaired = repaired.replace(/,\s*$/, '');
 
     // Try to balance braces/brackets if response is truncated
     const openBraces = (repaired.match(/\{/g) || []).length;

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Paper,
   TextInput,
@@ -15,13 +15,15 @@ import {
   Alert,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconBrandGoogle, IconBrandWindows, IconAlertCircle } from '@tabler/icons-react';
+import { IconBrandGoogle, IconBrandWindows, IconAlertCircle, IconUsers } from '@tabler/icons-react';
 import { useAuthStore } from '@/store/authStore';
 import authService from '@/services/auth';
 import type { LoginFormValues } from '@/types';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const inviteToken = searchParams.get('invite');
   const { login } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,8 +48,10 @@ export default function LoginPage() {
       const { user, token } = await authService.login(values);
       login(user, token);
 
-      // Navigate based on onboarding status
-      if (!user.isOnboarded) {
+      // If there's an invite token, redirect to accept invite page
+      if (inviteToken) {
+        navigate(`/invite/${inviteToken}`);
+      } else if (!user.isOnboarded) {
         navigate('/onboarding');
       } else {
         navigate('/dashboard');
@@ -80,6 +84,16 @@ export default function LoginPage() {
             Sign in to continue to CallMentor Pro
           </Text>
         </Box>
+
+        {inviteToken && (
+          <Alert
+            icon={<IconUsers size={16} />}
+            color="violet"
+            variant="light"
+          >
+            Sign in to accept your team invitation
+          </Alert>
+        )}
 
         {error && (
           <Alert

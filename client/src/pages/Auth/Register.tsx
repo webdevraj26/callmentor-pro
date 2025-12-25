@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Paper,
   TextInput,
@@ -23,6 +23,7 @@ import {
   IconUsers,
   IconSchool,
 } from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
 import { useAuthStore } from '@/store/authStore';
 import authService from '@/services/auth';
 
@@ -55,6 +56,8 @@ function getPasswordStrength(password: string): number {
 
 export default function RegisterPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const inviteToken = searchParams.get('invite');
   const { login } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -101,7 +104,13 @@ export default function RegisterPage() {
       });
 
       login(user, token);
-      navigate('/onboarding');
+
+      // If there's an invite token, redirect to accept invite page
+      if (inviteToken) {
+        navigate(`/invite/${inviteToken}`);
+      } else {
+        navigate('/onboarding');
+      }
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: { message?: string } } } };
       setError(error.response?.data?.error?.message || 'Failed to create account. Please try again.');
@@ -130,6 +139,16 @@ export default function RegisterPage() {
             Start your free 7-day trial today
           </Text>
         </Box>
+
+        {inviteToken && (
+          <Alert
+            icon={<IconUsers size={16} />}
+            color="violet"
+            variant="light"
+          >
+            Create an account to accept your team invitation
+          </Alert>
+        )}
 
         {error && (
           <Alert
