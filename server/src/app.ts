@@ -13,10 +13,22 @@ dotenv.config();
 
 const app = express();
 
+// CORS configuration - must be before helmet
+const corsOptions = {
+  origin: [
+    'https://callmentor-pro-1.onrender.com',
+    'http://localhost:3000',
+    'http://localhost:5173',
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
 // Middleware
-app.use(helmet());
-app.use(cors({
-  origin: '*',
+app.use(cors(corsOptions));
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
